@@ -1,57 +1,39 @@
-require('dotenv').config()
-require("./config/database.js").connect()
-const express = require("express")
+import { Request, Response } from "express"
+import { userRegister } from "./interface/userInterface"
 const jwt = require("jsonwebtoken")
 const bcrypt = require("bcryptjs")
-const cookieParser = require("cookie-parser")
-// Import model
-const User = require("./model/user")
+const User = require("../model/user")
 
-const app = express()
-app.use(express.json()) 
-app.use(express.urlencoded({extended:true}))
-app.use(cookieParser())
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-    res.header('Access-Control-Allow-Credentials', true);
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    next();
-  });
-
-// import auth from ("./middleware/auth")
-// Custom middleware
-const auth = require("./middleware/auth")
-
-
-
-app.get("/", (req,res)=>{res.send("Hello auth system")})
-
-app.post("/register", async (req,res)=>{
+exports.home = (req:Request,res:Response)=>{
+    res.send("Hello auth system")
+}
+exports.register = async (req:Request,res:Response)=>{
    try {
+    console.log(`Line 11 ${JSON.stringify(req.body)}`);
+    const data:userRegister = {...req.body}
     // Collecting all the information
-    const {firstname, lastname, email, password} = req.body
     // Validate if data exists
-    if (!(firstname && lastname && email && password)) {
-        res.status(401).send("All fields are required")}
+    if (!(data.firstname && data.email && data.password)) {
+        res.status(400).send("All fields are required")}
 
     // Check if email is in correct format
     
     // Check if user exists
-    const existingUser = await User.findOne({email})  //{email:email} first one is variable
+    const existingUser = await User.findOne({email:data.email})  //{email:email} first one is variable
         //  second one is extraction from body we use {email} because javascript is smart
     if (existingUser) {
-        res.status(401).send("User already exists")
+        res.status(400).send("User already exists")
     }
     // Encrypting the password
-    const myEncryptPassword = await bcrypt.hash(password, 10)
+    data.password = await bcrypt.hash(data.password, 10)
     
     // Creating entry in database
-    const user = await User.create({   
-        firstname,            // firstname:firstname, -Javascript is smart
-        lastname,            // lastname:lastname,
-        email,              // email:email,
-        password:myEncryptPassword
-    })
+    const user = await User.create(   
+        {firstname:data.firstname,            // firstname:firstname, -Javascript is smart
+        lastname:data.lastname,            // lastname:lastname,
+        email:data.email,              // email:email,
+        password:data.password}
+    )
     // Create a token and send it to user
     const token = jwt.sign({
         id: user._id,
@@ -68,9 +50,8 @@ app.post("/register", async (req,res)=>{
     console.log(error);
     console.log("Error in response route");
    }   
-})
-
-    app.post("/login", async(req,res)=>{
+}
+exports.login = async(req:Request,res:Response)=>{
         try {
             // Collect information from frontend
             const { email, password} = req.body
@@ -97,9 +78,9 @@ app.post("/register", async (req,res)=>{
                 console.log(token)
                 // user.token = token
 
-            // res.cookie("token", token, options);
+            res.cookie("token", token);
             // console.log("Line 92");
-            res.status(200).cookie("token",token).json({
+            res.status(200).json({
                 success:true,
                 token,
                 user
@@ -113,13 +94,7 @@ app.post("/register", async (req,res)=>{
             console.log(error)
             console.log("Error in login")
         }
-    })
-
-app.get("/dashboard", auth, (req,res) => {
-    console.log(req.user.name)
-    res.send(req.user.name)    
-})
-
-
-module.exports = app
-
+}
+exports.dashboard = (req:Request,res:Response) => {
+    res.send(req.body.user.name)    
+}
