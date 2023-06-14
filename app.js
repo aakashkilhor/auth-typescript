@@ -54,14 +54,15 @@ app.post("/register", async (req,res)=>{
     })
     // Create a token and send it to user
     const token = jwt.sign({
-        id: user._id
+        id: user._id,
+        name:user.firstname
     }, 'secret', {expiresIn: '2h'})
 
     user.token = token;
     // Don't want to send the password
     user.password = undefined
 
-    res.status(201).json(user)
+    res.status(201).cookie("token",token).json(user)
 
    } catch (error) {
     console.log(error);
